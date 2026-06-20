@@ -9,11 +9,44 @@ st.set_page_config(page_title="AI 주가 예측", layout="wide")
 
 st.title("📈 AI 주가 예측 웹앱")
 
-ticker = st.text_input(
-    "종목 코드 입력",
-    value="NVDA"
-).upper()
+# 시장 선택
+market = st.radio(
+    "시장 선택",
+    ["🇰🇷 국내 주식", "🇺🇸 미국 주식"]
+)
 
+# 종목 목록
+if market == "🇰🇷 국내 주식":
+    stocks = {
+        "삼성전자": "005930.KS",
+        "SK하이닉스": "000660.KS",
+        "NAVER": "035420.KS",
+        "카카오": "035720.KS",
+        "현대차": "005380.KS",
+        "LG에너지솔루션": "373220.KS",
+        "셀트리온": "068270.KS",
+        "기아": "000270.KS"
+    }
+else:
+    stocks = {
+        "NVIDIA": "NVDA",
+        "Apple": "AAPL",
+        "Microsoft": "MSFT",
+        "Amazon": "AMZN",
+        "Alphabet": "GOOGL",
+        "Meta": "META",
+        "Tesla": "TSLA",
+        "Broadcom": "AVGO"
+    }
+
+company = st.selectbox(
+    "종목 선택",
+    list(stocks.keys())
+)
+
+ticker = stocks[company]
+
+# 데이터 다운로드
 df = yf.download(
     ticker,
     period="1y",
@@ -28,28 +61,26 @@ if not df.empty:
     if len(close.shape) > 1:
         close = close.iloc[:, 0]
 
-    close = close.values
-
-    # 날짜 번호 생성
-    x = np.arange(len(close)).reshape(-1,1)
+    close = close.values.flatten()
 
     # 모델 학습
+    x = np.arange(len(close)).reshape(-1, 1)
+
     model = LinearRegression()
     model.fit(x, close)
 
     # 미래 30일 예측
     future_days = 30
+
     future_x = np.arange(
         len(close),
         len(close)+future_days
     ).reshape(-1,1)
 
-    predictions = model.predict(future_x)
+    pred = model.predict(future_x)
 
-    # 실제 날짜
     actual_dates = df.index
 
-    # 미래 날짜
     future_dates = pd.date_range(
         start=actual_dates[-1],
         periods=future_days+1,
@@ -72,14 +103,14 @@ if not df.empty:
     fig.add_trace(
         go.Scatter(
             x=future_dates,
-            y=predictions,
+            y=pred,
             mode="lines",
-            name="예측 주가"
+            name="30일 예측"
         )
     )
 
     fig.update_layout(
-        title=f"{ticker} 주가 및 향후 30일 예측",
+        title=f"{company} 주가 및 30일 예측",
         xaxis_title="날짜",
         yaxis_title="주가",
         hovermode="x unified",
